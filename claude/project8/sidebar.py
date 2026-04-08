@@ -13,8 +13,8 @@ def create_sidebar():
         st.markdown("---")
 
         st.markdown("### 📅 Data Parameters")
-        var["price_start"]  = st.date_input("Price history start", value=date(2005, 1, 1), min_value=date(2000,1,1))
-        var["study_start"]  = st.date_input("Study window start",  value=date(2010, 1, 1), min_value=date(2005,1,1))
+        var["price_start"]  = st.date_input("Price history start", value=date(2000, 1, 1), min_value=date(2000,1,1))
+        var["study_start"]  = st.date_input("Study window start",  value=date(2005, 1, 1), min_value=date(2005,1,1))
         var["study_end"]    = st.date_input("Study window end",    value=date.today())
         var["selected_tickers"] = st.multiselect(
             "Sectors", list(SECTORS.keys()), default=list(SECTORS.keys()),
@@ -70,9 +70,7 @@ def create_sidebar():
                      "amihud_illiquidity","volume","var","skewness","kurtosis",
                      "log_market_cap","average_sector_correlation"],
         )
-
-        run_btn = st.button("🚀 Run Full Pipeline", type="primary", width="stretch")
-        import_data_btn = st.button("Import data", type="primary", width="stretch")
+        import_data_btn = st.button("Run full analysis", type="primary", width="stretch")
         if import_data_btn:
             load_on_run(
                 var["selected_tickers"],
@@ -85,5 +83,4 @@ def create_sidebar():
                 var["kappa1"],
                 var["kappa2"]
             )
-        calculate_spillover_btn = st.button("Calculate spillover", type="primary", width="stretch")
         return var
