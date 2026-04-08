@@ -240,3 +240,47 @@ def render_ml_pipeline(
     })
     
     st.dataframe(in_sample_metrics.style.format({"Value": "{:.3f}"}), hide_index=True, width="stretch")
+    # ── SHAP Dependence Plots (Threshold Discovery) ─────────────────────────
+    st.markdown('<div class="section-header">SHAP Dependence Plots (Threshold Discovery)</div>', unsafe_allow_html=True)
+
+    st.markdown(
+        "Use this plot to find the exact economic threshold where a feature turns a sector into a transmitter (crosses the y=0 line).")
+
+    # Dropdown to select feature
+    dep_feature = st.selectbox("Select Feature to analyze:", feat_cols)
+
+    # Get index of the selected feature to match with shap_vals matrix
+    feat_idx = feat_cols.index(dep_feature)
+
+    # Use Original X values for interpretability, and SHAP values for Y-axis
+    x_vals = X[dep_feature].values
+
+    # shap_vals shape handling (binary classification might return a list of arrays)
+    y_vals = shap_vals[:, feat_idx]
+
+    fig_dep = go.Figure()
+    fig_dep.add_trace(go.Scatter(
+        x=x_vals,
+        y=y_vals,
+        mode='markers',
+        marker=dict(
+            size=6,
+            color=y_vals,
+            colorscale='RdBu_r',  # Red for positive (Transmitter), Blue for negative (Receiver)
+            showscale=False,
+            opacity=0.7
+        ),
+        hovertemplate="<b>Feature Value:</b> %{x}<br><b>SHAP Value:</b> %{y:.4f}<extra></extra>"
+    ))
+
+    # Add critical threshold line at y=0
+    fig_dep.add_hline(y=0, line_dash="dash", line_color="black", opacity=0.8,
+                      annotation_text="Transmitter Threshold", annotation_position="top left")
+
+    fig_dep.update_layout(
+        height=450,
+        xaxis_title=f"{dep_feature} (Actual Economic Value)",
+        yaxis_title="SHAP Value (Impact)",
+        margin=dict(l=0, r=0, t=10, b=0)
+    )
+    st.plotly_chart(fig_dep, width="stretch")
