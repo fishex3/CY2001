@@ -63,6 +63,50 @@ def compute_market_corr(prices, bm, window):
     return out
 
 
+def _expand_lagged_quarterly_to_daily(quarterly_df: pd.DataFrame, daily_index: pd.DatetimeIndex) -> pd.DataFrame:
+    """
+    Map each trading day to the lagged quarter-end feature for its calendar quarter.
+
+    quarterly_df must be indexed at quarter-end dates (e.g. resample('QE').last()),
+    then .shift(1) so the row labeled quarter Q holds data that only uses information
+    through Q-1 (no look-ahead). After that shift, every day in quarter Q should use
+    the value stored on Q's row (constant within the quarter for modeling).
+    """
+    ql = quarterly_df.copy()
+    ql.index = ql.index.to_period("Q")
+    per = pd.DatetimeIndex(daily_index).to_period("Q")
+    out = ql.reindex(per)
+    out.index = daily_index
+    return out
+
+
+def build_tlt_corr_features(sector_px: pd.DataFrame, tlt_px: pd.Series, window: int = 30) -> dict[str, pd.DataFrame]:
+    """
+    Sector vs TLT (bonds) rolling correlation, aggregated to quarters.
+
+    Returns contemporaneous quarterly features. Lagging is handled separately.
+    """
+    tlt = tlt_px.reindex(sector_px.index).ffill()
+    lr_sec = compute_log_returns(sector_px)
+    lr_tlt = np.log(tlt / tlt.shift(1))
+
+    # Daily rolling correlation vs TLT
+    corr_daily = lr_sec.rolling(window, min_periods=window).corr(lr_tlt)
+    corr_daily.columns = [f"{c}_corr_tlt" for c in sector_px.columns]
+
+    # Quarter-end snapshot of the rolling correlation series
+    quarterly_corr = corr_daily.resample("QE").last()
+    corr_tlt = _expand_lagged_quarterly_to_daily(quarterly_corr, sector_px.index)
+    corr_tlt.columns = list(sector_px.columns)
+
+    # QoQ change in quarter-end correlation
+    quarterly_diff = quarterly_corr.diff()
+    corr_tlt_diff = _expand_lagged_quarterly_to_daily(quarterly_diff, sector_px.index)
+    corr_tlt_diff.columns = list(sector_px.columns)
+
+    return {"corr_tlt": corr_tlt, "corr_tlt_diff": corr_tlt_diff}
+
+
 def compute_amihud(prices, volume):
     lr = compute_log_returns(prices)
     dvol = prices * volume
